@@ -75,12 +75,9 @@ def worker(idx, file_name, *,
 
 # define a custom function to process the given filename
 @ray.remote
-def ray_worker(idx, file_name, shared_state):
+def ray_worker(idx, filename, shared_state=_shared_state):
     outdir = shared_state['outdir']
     log_manager = shared_state['log_manager']
-    num_files = shared_state['num_files']
-    config = shared_state['config']
-    process_queue = shared_state['process_queue']
 
     fname_outdir = os.path.join(outdir, os.path.basename(file_name))
     if os.path.isdir(fname_outdir):  # directory exists
@@ -106,8 +103,8 @@ def ray_worker(idx, file_name, shared_state):
     except Exception as exc:
         raise exc
 
-    img = cv2.imread(file_name)
-    return f'{file_name} has shape {img.shape}'
+    img = cv2.imread(filename)
+    return f'{filename} has shape {img.shape}'
 
 
 
