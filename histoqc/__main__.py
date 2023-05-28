@@ -205,7 +205,7 @@ def main(argv=None):
                 ray.available_resources()
 
                 # use ray
-                futures = [ray_worker.remote(file_name) for idx, file_name in enumerate(files)]
+                futures = [ray_worker.remote(idx, file_name) for idx, file_name in enumerate(files)]
                 output = ray.get(futures)
                 print(output)
 
