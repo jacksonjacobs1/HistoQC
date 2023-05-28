@@ -166,7 +166,7 @@ def main(argv=None):
 
     # define a custom function to process the given filename
     @ray.remote
-    def ray_worker(idx, filename, shared_state=_shared_state):
+    def ray_worker(idx, filename, shared_state):
         outdir = shared_state['outdir']
         log_manager = shared_state['log_manager']
         fname_outdir = os.path.join(outdir, os.path.basename(filename))
@@ -205,7 +205,7 @@ def main(argv=None):
                 ray.available_resources()
 
                 # use ray
-                futures = [ray_worker.remote(idx, file_name) for idx, file_name in enumerate(files)]
+                futures = [ray_worker.remote(idx, file_name, _shared_state) for idx, file_name in enumerate(files)]
                 output = ray.get(futures)
                 print(output)
 
