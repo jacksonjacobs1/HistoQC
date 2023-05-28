@@ -3,7 +3,7 @@ import configparser
 import datetime
 import glob
 import logging
-import ray.util.multiprocessing as multiprocessing
+import multiprocessing
 import os
 import sys
 import time
@@ -18,7 +18,7 @@ from histoqc._pipeline import log_pipeline
 from histoqc._pipeline import move_logging_file_handler
 from histoqc._pipeline import setup_logging
 from histoqc._pipeline import setup_plotting_backend
-from histoqc._worker import worker, ray_worker
+from histoqc._worker import worker
 from histoqc._worker import worker_setup
 from histoqc._worker import worker_success
 from histoqc._worker import worker_error
@@ -164,43 +164,51 @@ def main(argv=None):
     failed = mpm.list()
     setup_plotting_backend(lm.logger)
 
-    breakpoint()
+    # define a custom function to process the given filename
+    @ray.remote
+    def ray_worker(idx, filename, shared_state=_shared_state):
+        outdir = shared_state['outdir']
+        log_manager = shared_state['log_manager']
+        fname_outdir = os.path.join(outdir, os.path.basename(file_name))
 
+
+        img = cv2.imread(filename)
+        return f'{filename} has shape {img.shape}'
 
     try:
         if args.nprocesses > 1:
             # original multiprocessing
-            with lm.logger_thread():
-                print(args.nprocesses)
-                with multiprocessing.Pool(ray_address='auto', processes=args.nprocesses,
-                                          initializer=worker_setup,
-                                          initargs=(config,)) as pool:
-                    try:
-                        for idx, file_name in enumerate(files):
-                            _ = pool.apply_async(
-                                func=worker,
-                                args=(idx, file_name),
-                                kwds=_shared_state,
-                                callback=partial(worker_success, result_file=results),
-                                error_callback=partial(worker_error, failed=failed),
-                            )
-
-                    finally:
-                        pool.close()
-                        pool.join()
-
-            # ray multiprocessing
             # with lm.logger_thread():
             #     print(args.nprocesses)
+            #     with multiprocessing.Pool(processes=args.nprocesses,
+            #                               initializer=worker_setup,
+            #                               initargs=(config,)) as pool:
+            #         try:
+            #             for idx, file_name in enumerate(files):
+            #                 _ = pool.apply_async(
+            #                     func=worker,
+            #                     args=(idx, file_name),
+            #                     kwds=_shared_state,
+            #                     callback=partial(worker_success, result_file=results),
+            #                     error_callback=partial(worker_error, failed=failed),
+            #                 )
 
-            #     # set up ray
-            #     ray.init()
-            #     ray.available_resources()
+            #         finally:
+            #             pool.close()
+            #             pool.join()
 
-            #     # use ray
-            #     futures = [ray_worker.remote(idx, file_name, _shared_state) for idx, file_name in enumerate(files)]
-            #     output = ray.get(futures)
-            #     print(output)
+            # ray multiprocessing
+            with lm.logger_thread():
+                print(args.nprocesses)
+
+                # set up ray
+                ray.init()
+                ray.available_resources()
+
+                # use ray
+                futures = [ray_worker.remote(file_name) for idx, file_name in files]
+                output = ray.get(futures)
+                print(output)
 
 
 

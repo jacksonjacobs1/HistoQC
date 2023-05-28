@@ -73,40 +73,6 @@ def worker(idx, file_name, *,
         s["os_handle"] = None  # need to get rid of handle because it can't be pickled
         return s
 
-# define a custom function to process the given filename
-@ray.remote
-def ray_worker(idx, filename, shared_state=_shared_state):
-    outdir = shared_state['outdir']
-    log_manager = shared_state['log_manager']
-
-    fname_outdir = os.path.join(outdir, os.path.basename(file_name))
-    if os.path.isdir(fname_outdir):  # directory exists
-        log_manager.logger.warning(
-            f"{file_name} already seems to be processed (output directory exists),"
-            " skipping. To avoid this behavior use --force"
-        )
-        return
-
-    os.makedirs(fname_outdir)
-
-    log_manager.logger.info(f"-----Working on:\t{file_name}\t\t{idx+1} of {num_files}")
-
-    try:
-        s = BaseImage(file_name, fname_outdir, dict(config.items("BaseImage.BaseImage")))
-
-        for process, process_params in process_queue:
-            # process_params["lock"] = lock
-            # process_params["shared_dict"] = shared_state
-            process(s, process_params)
-            s["completed"].append(process.__name__)
-
-    except Exception as exc:
-        raise exc
-
-    img = cv2.imread(filename)
-    return f'{filename} has shape {img.shape}'
-
-
 
 def worker_success(s, result_file):
     """success callback"""
