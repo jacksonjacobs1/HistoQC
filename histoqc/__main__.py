@@ -3,7 +3,7 @@ import configparser
 import datetime
 import glob
 import logging
-import multiprocessing
+import ray.util.multiprocessing as multiprocessing
 import os
 import sys
 import time
@@ -156,49 +156,51 @@ def main(argv=None):
         'config': config,
         'outdir': args.outdir,
         'log_manager': lm,
-        # 'lock': mpm.Lock(),
-        # 'shared_dict': mpm.dict(),
+        'lock': mpm.Lock(),
+        'shared_dict': mpm.dict(),
         'num_files': num_files,
         'force': args.force,
     }
     failed = mpm.list()
     setup_plotting_backend(lm.logger)
 
+    breakpoint()
+
 
     try:
         if args.nprocesses > 1:
             # original multiprocessing
-            # with lm.logger_thread():
-            #     print(args.nprocesses)
-            #     with multiprocessing.Pool(processes=args.nprocesses,
-            #                               initializer=worker_setup,
-            #                               initargs=(config,)) as pool:
-            #         try:
-            #             for idx, file_name in enumerate(files):
-            #                 _ = pool.apply_async(
-            #                     func=worker,
-            #                     args=(idx, file_name),
-            #                     kwds=_shared_state,
-            #                     callback=partial(worker_success, result_file=results),
-            #                     error_callback=partial(worker_error, failed=failed),
-            #                 )
-
-            #         finally:
-            #             pool.close()
-            #             pool.join()
-
-            # ray multiprocessing
             with lm.logger_thread():
                 print(args.nprocesses)
+                with multiprocessing.Pool(ray_address='auto', processes=args.nprocesses,
+                                          initializer=worker_setup,
+                                          initargs=(config,)) as pool:
+                    try:
+                        for idx, file_name in enumerate(files):
+                            _ = pool.apply_async(
+                                func=worker,
+                                args=(idx, file_name),
+                                kwds=_shared_state,
+                                callback=partial(worker_success, result_file=results),
+                                error_callback=partial(worker_error, failed=failed),
+                            )
 
-                # set up ray
-                ray.init()
-                ray.available_resources()
+                    finally:
+                        pool.close()
+                        pool.join()
 
-                # use ray
-                futures = [ray_worker.remote(idx, file_name, _shared_state) for idx, file_name in enumerate(files)]
-                output = ray.get(futures)
-                print(output)
+            # ray multiprocessing
+            # with lm.logger_thread():
+            #     print(args.nprocesses)
+
+            #     # set up ray
+            #     ray.init()
+            #     ray.available_resources()
+
+            #     # use ray
+            #     futures = [ray_worker.remote(idx, file_name, _shared_state) for idx, file_name in enumerate(files)]
+            #     output = ray.get(futures)
+            #     print(output)
 
 
 

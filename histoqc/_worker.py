@@ -88,6 +88,7 @@ def ray_worker(idx, file_name, shared_state):
             f"{file_name} already seems to be processed (output directory exists),"
             " skipping. To avoid this behavior use --force"
         )
+        return
 
     os.makedirs(fname_outdir)
 
@@ -103,19 +104,6 @@ def ray_worker(idx, file_name, shared_state):
             s["completed"].append(process.__name__)
 
     except Exception as exc:
-        # reproduce histoqc error string
-        _oneline_doc_str = exc.__doc__.replace('\n', '')
-        err_str = f"{exc.__class__} {_oneline_doc_str} {exc}"
-
-        log_manager.logger.error(
-            f"{file_name} - Error analyzing file (skipping): \t {err_str}"
-        )
-        if exc.__traceback__.tb_next is not None:
-            func_tb_obj = str(exc.__traceback__.tb_next.tb_frame.f_code)
-        else:
-            func_tb_obj = str(exc.__traceback__)
-
-        exc.__histoqc_err__ = (file_name, err_str, func_tb_obj)
         raise exc
 
     img = cv2.imread(file_name)
