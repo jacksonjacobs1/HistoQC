@@ -1,6 +1,8 @@
 """histoqc worker functions"""
 import os
 import shutil
+import cv2
+import ray
 
 from histoqc.BaseImage import BaseImage
 from histoqc._pipeline import load_pipeline
@@ -70,6 +72,52 @@ def worker(idx, file_name, *,
         #      and cleanup the OpenSlide handle on __exit__
         s["os_handle"] = None  # need to get rid of handle because it can't be pickled
         return s
+
+# define a custom function to process the given filename
+@ray.remote
+def ray_worker(idx, filename, shared_state=_shared_state):
+    outdir = shared_state['outdir']
+    log_manager = shared_state['log_manager']
+
+    fname_outdir = os.path.join(outdir, os.path.basename(file_name))
+    if os.path.isdir(fname_outdir):  # directory exists
+        log_manager.logger.warning(
+            f"{file_name} already seems to be processed (output directory exists),"
+            " skipping. To avoid this behavior use --force"
+        )
+
+    os.makedirs(fname_outdir)
+
+    log_manager.logger.info(f"-----Working on:\t{file_name}\t\t{idx+1} of {num_files}")
+
+    try:
+        s = BaseImage(file_name, fname_outdir, dict(config.items("BaseImage.BaseImage")))
+
+        for process, process_params in process_queue:
+            # process_params["lock"] = lock
+            process_params["shared_dict"] = shared_state
+            process(s, process_params)
+            s["completed"].append(process.__name__)
+
+    except Exception as exc:
+        # reproduce histoqc error string
+        _oneline_doc_str = exc.__doc__.replace('\n', '')
+        err_str = f"{exc.__class__} {_oneline_doc_str} {exc}"
+
+        log_manager.logger.error(
+            f"{file_name} - Error analyzing file (skipping): \t {err_str}"
+        )
+        if exc.__traceback__.tb_next is not None:
+            func_tb_obj = str(exc.__traceback__.tb_next.tb_frame.f_code)
+        else:
+            func_tb_obj = str(exc.__traceback__)
+
+        exc.__histoqc_err__ = (file_name, err_str, func_tb_obj)
+        raise exc
+
+    img = cv2.imread(filename)
+    return f'{filename} has shape {img.shape}'
+
 
 
 def worker_success(s, result_file):

@@ -18,7 +18,7 @@ from histoqc._pipeline import log_pipeline
 from histoqc._pipeline import move_logging_file_handler
 from histoqc._pipeline import setup_logging
 from histoqc._pipeline import setup_plotting_backend
-from histoqc._worker import worker
+from histoqc._worker import worker, ray_worker
 from histoqc._worker import worker_setup
 from histoqc._worker import worker_success
 from histoqc._worker import worker_error
@@ -164,11 +164,6 @@ def main(argv=None):
     failed = mpm.list()
     setup_plotting_backend(lm.logger)
 
-    # define a custom function to process the given filename
-    @ray.remote
-    def ray_worker(filename):
-        img = cv2.imread(filename)
-        return f'{filename} has shape {img.shape}'
 
     try:
         if args.nprocesses > 1:
@@ -201,7 +196,7 @@ def main(argv=None):
                 ray.available_resources()
 
                 # use ray
-                futures = [ray_worker.remote(file_name) for file_name in files]
+                futures = [ray_worker.remote(idx, file_name, _shared_state) for idx, file_name in enumerate(files)]
                 output = ray.get(futures)
                 print(output)
 
