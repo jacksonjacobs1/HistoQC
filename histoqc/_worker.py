@@ -98,7 +98,7 @@ def ray_worker(idx, file_name, shared_state):
 
         for process, process_params in process_queue:
             # process_params["lock"] = lock
-            process_params["shared_dict"] = shared_state
+            # process_params["shared_dict"] = shared_state
             process(s, process_params)
             s["completed"].append(process.__name__)
 

@@ -156,8 +156,8 @@ def main(argv=None):
         'config': config,
         'outdir': args.outdir,
         'log_manager': lm,
-        'lock': mpm.Lock(),
-        'shared_dict': mpm.dict(),
+        # 'lock': mpm.Lock(),
+        # 'shared_dict': mpm.dict(),
         'num_files': num_files,
         'force': args.force,
     }
