@@ -169,7 +169,7 @@ def main(argv=None):
     def ray_worker(idx, filename, shared_state=_shared_state):
         outdir = shared_state['outdir']
         log_manager = shared_state['log_manager']
-        fname_outdir = os.path.join(outdir, os.path.basename(file_name))
+        fname_outdir = os.path.join(outdir, os.path.basename(filename))
 
         img = cv2.imread(filename)
         return f'{filename} has shape {img.shape}'
