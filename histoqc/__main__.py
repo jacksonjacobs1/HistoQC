@@ -171,7 +171,6 @@ def main(argv=None):
         log_manager = shared_state['log_manager']
         fname_outdir = os.path.join(outdir, os.path.basename(file_name))
 
-
         img = cv2.imread(filename)
         return f'{filename} has shape {img.shape}'
 
@@ -206,7 +205,7 @@ def main(argv=None):
                 ray.available_resources()
 
                 # use ray
-                futures = [ray_worker.remote(file_name) for idx, file_name in files]
+                futures = [ray_worker.remote(file_name) for idx, file_name in enumerate(files)]
                 output = ray.get(futures)
                 print(output)
 
